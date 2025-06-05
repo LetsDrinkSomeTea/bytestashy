@@ -29,4 +29,4 @@ Die Konfiguration wird in einem betriebssystemspezifischen Konfigurationsordner 
 
 ## Lizenz
 
-Dieses Projekt steht unter der MIT-Lizenz.
+Dieses Projekt steht unter der GPLv3 [LICENSE](LICENSE)
