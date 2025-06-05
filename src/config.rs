@@ -7,7 +7,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 // Constants for keyring
-const KEYRING_SERVICE: &str = "bitscli";
+const KEYRING_SERVICE: &str = "bits";
 const KEYRING_USERNAME: &str = "api_key";
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -24,15 +24,20 @@ impl Config {
     /// Versucht, die Konfigurationsdatei zu laden. Gibt Ok(Some(cfg)) zurück, wenn sie existiert, 
     /// Ok(None), wenn sie nicht existiert, andernfalls Err.
     pub fn load() -> anyhow::Result<Option<Config>> {
-        if let Some(proj_dirs) = ProjectDirs::from("", "", "bitscli") {
+        if let Some(proj_dirs) = ProjectDirs::from("", "", "bits") {
             let config_path: PathBuf = proj_dirs.config_dir().join("config.json");
             if config_path.exists() {
                 let content = fs::read_to_string(&config_path)?;
                 let mut cfg: Config = serde_json::from_str(&content)?;
 
                 // Versuche, den API-Key aus dem Keyring zu laden
-                if let Ok(api_key) = Self::get_api_key_from_keyring() {
-                    cfg.api_key = api_key;
+                match Self::get_api_key_from_keyring() {
+                    Ok(api_key) => {
+                        cfg.api_key = api_key;
+                    },
+                    Err(err) => {
+                        return Err(anyhow::anyhow!("Fehler beim Laden des API-Keys aus dem Keyring: {}", err));
+                    }
                 }
 
                 return Ok(Some(cfg));
@@ -47,7 +52,7 @@ impl Config {
         // Speichere den API-Key im Keyring
         Self::save_api_key_to_keyring(&self.api_key)?;
 
-        if let Some(proj_dirs) = ProjectDirs::from("", "", "bitscli") {
+        if let Some(proj_dirs) = ProjectDirs::from("", "", "bits") {
             let config_dir = proj_dirs.config_dir();
             fs::create_dir_all(config_dir)?;
             let config_path = config_dir.join("config.json");
@@ -75,13 +80,12 @@ impl Config {
     fn save_api_key_to_keyring(api_key: &str) -> anyhow::Result<()> {
         let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)?;
         entry.set_password(api_key)?;
-        Ok(())
+        Ok(())   
     }
 
     /// Lädt den API-Key aus dem Keyring
     fn get_api_key_from_keyring() -> anyhow::Result<String> {
         let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)?;
-        let password = entry.get_password()?;
-        Ok(password)
+        Ok(entry.get_password()?)
     }
 }
