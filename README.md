@@ -1,13 +1,14 @@
-# BitsCLI
+# bytestashy
 
-BitsCLI ist ein CLI-Tool, das mit der API von ByteStash kommuniziert, um Dateien schnell als Snippets abzulegen.
+bytestashy ist ein CLI-Tool, das mit der API von ByteStash kommuniziert, um Dateien schnell als Snippets abzulegen.
 
 ## Installation
 
-Voraussetzung ist eine aktuelle Rust-Installation (mindestens Rust 1.74 mit Edition 2024). Anschließend kann das Projekt kompiliert oder direkt installiert werden:
+Voraussetzung ist eine aktuelle Rust-Installation (mindestens Rust 1.74 mit Edition 2024).
+Anschließend kann das Projekt kompiliert oder direkt installiert werden:
 
 ```bash
-cargo install --path .
+cargo install bytestashy
 ```
 
 ## Benutzung
