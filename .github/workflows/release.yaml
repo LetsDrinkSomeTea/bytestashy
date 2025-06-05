@@ -1,0 +1,21 @@
+name: Release to Crates
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install dependencies
+        run: sudo apt install libdbus-1-dev pkg-config
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+      - uses: katyo/publish-crates@v2
+        with:
+            registry-token: ${{ secrets.CRATE_API_KEY }}
+
+  
