@@ -7,7 +7,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 // Constants for keyring
-const KEYRING_SERVICE: &str = "bits";
+const KEYRING_SERVICE: &str = "bytestashy";
 const KEYRING_USERNAME: &str = "api_key";
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -24,7 +24,7 @@ impl Config {
     /// Versucht, die Konfigurationsdatei zu laden. Gibt Ok(Some(cfg)) zurück, wenn sie existiert, 
     /// Ok(None), wenn sie nicht existiert, andernfalls Err.
     pub fn load() -> anyhow::Result<Option<Config>> {
-        if let Some(proj_dirs) = ProjectDirs::from("", "", "bits") {
+        if let Some(proj_dirs) = ProjectDirs::from("", "", "bytestashy") {
             let config_path: PathBuf = proj_dirs.config_dir().join("config.json");
             if config_path.exists() {
                 let content = fs::read_to_string(&config_path)?;
@@ -52,7 +52,7 @@ impl Config {
         // Speichere den API-Key im Keyring
         Self::save_api_key_to_keyring(&self.api_key)?;
 
-        if let Some(proj_dirs) = ProjectDirs::from("", "", "bits") {
+        if let Some(proj_dirs) = ProjectDirs::from("", "", "bytestashy") {
             let config_dir = proj_dirs.config_dir();
             fs::create_dir_all(config_dir)?;
             let config_path = config_dir.join("config.json");
@@ -80,7 +80,7 @@ impl Config {
     fn save_api_key_to_keyring(api_key: &str) -> anyhow::Result<()> {
         let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)?;
         entry.set_password(api_key)?;
-        Ok(())   
+        Ok(())
     }
 
     /// Lädt den API-Key aus dem Keyring

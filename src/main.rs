@@ -9,7 +9,7 @@ use api_client::APIClient;
 
 /// BitsCLI: Ein Tool, um Snippets per API hochzuladen.
 #[derive(Parser)]
-#[command(name = "bits", version, about = "CLI für Snippet‐Uploads auf ByteStash")]
+#[command(name = "bytestashy", version, about = "CLI für Snippet‐Uploads auf ByteStash")]
 struct Cli {
     files: Vec<String>,
 
@@ -100,8 +100,8 @@ fn main() {
                 &files,
             ) {
                 Ok(json) => {
-                    println!("Snippet erfolgreich erstellt. Server-Antwort:");
-                    println!("{}", serde_json::to_string_pretty(&json).unwrap());
+                    println!("Snippet erfolgreich erstellt.");
+                    println!("{}/snippets/{}", client.api_url, json.get("id").unwrap());
                 }
                 Err(err) => {
                     eprintln!("Fehler beim Erstellen des Snippets: {}", err);

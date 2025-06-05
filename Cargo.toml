@@ -1,14 +1,13 @@
 [package]
-name = "bits"
-description = "A command-line interface for ByteStash for easy posting of snippets without opening a browser."
+name = "bytestashy"
+description = "A command-line interface for ByteStash for the easy posting of snippets without opening a browser."
 version = "0.1.0"
 edition = "2024"
 repository = "https://github.com/LetsDrinkSomeTea/bitscli"
 license-file = "LICENSE"
 readme = "README.md"
-categories = ["command-line-utilities"]
-publish = ["bitscli"]
-
+categories = ["command-line-utilities", "development-tools"]
+keywords = ["cli", "snippets", "bytestash"]
 
 
 [dependencies]

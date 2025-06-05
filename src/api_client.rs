@@ -25,7 +25,7 @@ struct ApiKeyResponse {
 
 pub struct APIClient {
     client: Client,
-    api_url: String,
+    pub(crate) api_url: String,
     api_key: String,
 }
 
@@ -90,7 +90,7 @@ impl APIClient {
         // 3. Namen für den API-Key abfragen
         let key_name: String = Input::new()
             .with_prompt("Name für den neu zu erzeugenden API-Key")
-            .default("bitscli".into())
+            .default("bytestashy".into())
             .interact_text()?;
 
         // 4. POST /api/keys
