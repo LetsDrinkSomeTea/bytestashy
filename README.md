@@ -1,33 +1,32 @@
 # bytestashy
 
-bytestashy ist ein CLI-Tool, das mit der API von ByteStash kommuniziert, um Dateien schnell als Snippets abzulegen.
+bytestashy is a CLI tool that communicates with the ByteStash API to quickly store files as snippets.
 
 ## Installation
 
-Voraussetzung ist eine aktuelle Rust-Installation (mindestens Rust 1.74 mit Edition 2024).
-Anschließend kann das Projekt kompiliert oder direkt installiert werden:
+A recent Rust installation is required (at least Rust 1.74 with Edition 2024). Then the project can be compiled or installed directly:
 
 ```bash
 cargo install bytestashy
 ```
 
-## Benutzung
+## Usage
 
-Vor dem ersten Upload muss ein API-Schlüssel für ByteStash erzeugt werden.
-
-```bash
-bits login https://beispiel.api.tld
-```
-
-Nach erfolgreichem Login können Dateien als Snippet hochgeladen werden. 
-Das Programm fragt dabei interaktiv Titel, Beschreibung, Öffentlichkeit und Kategorien ab:
+Before the first upload, an API key for ByteStash must be generated:
 
 ```bash
-bits datei1.txt datei2.rs
+bits login https://example.api.tld
 ```
 
-Die Konfiguration wird in einem betriebssystemspezifischen Konfigurationsordner abgelegt (z. B. unter Linux in `$XDG_CONFIG_HOME/bitscli/config.json`). Der API-Key selbst wird sicher im Keyring des Systems gespeichert.
+After a successful login, files can be uploaded as snippets. The program will interactively prompt for title, description, visibility, and categories:
 
-## Lizenz
+```bash
+bits file1.txt file2.rs
+```
 
-Dieses Projekt steht unter der GPLv3 [LICENSE](LICENSE)
+Configuration is stored in an OS-specific config folder (e.g., on Linux under `$XDG_CONFIG_HOME/bytestashy/config.json`).
+The API key itself is securely saved in the system’s keyring.
+
+## License
+
+This project is licensed under the GPLv3. [LICENSE](LICENSE)
