@@ -15,13 +15,13 @@ cargo install bytestashy
 Before the first upload, an API key for ByteStash must be generated:
 
 ```bash
-bits login https://example.api.tld
+bytestashy login https://example.api.tld
 ```
 
 After a successful login, files can be uploaded as snippets. The program will interactively prompt for title, description, visibility, and categories:
 
 ```bash
-bits file1.txt file2.rs
+bytestashy file1.txt file2.rs
 ```
 
 Configuration is stored in an OS-specific config folder (e.g., on Linux under `$XDG_CONFIG_HOME/bytestashy/config.json`).

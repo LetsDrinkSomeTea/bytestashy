@@ -1,4 +1,3 @@
-// src/config.rs
 use directories::ProjectDirs;
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
@@ -12,17 +11,12 @@ const KEYRING_USERNAME: &str = "api_key";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
-    /// Basis-URL der API, z.B. "https://meine.app.tld"
     pub api_url: String,
-    /// Der erzeugte API-Key, der später für Snippet‐Uploads verwendet wird
-    /// Hinweis: Wird nicht in der Konfigurationsdatei gespeichert, sondern im Keyring
     #[serde(skip)]
     pub api_key: String,
 }
 
 impl Config {
-    /// Versucht, die Konfigurationsdatei zu laden. Gibt Ok(Some(cfg)) zurück, wenn sie existiert, 
-    /// Ok(None), wenn sie nicht existiert, andernfalls Err.
     pub fn load() -> anyhow::Result<Option<Config>> {
         if let Some(proj_dirs) = ProjectDirs::from("", "", "bytestashy") {
             let config_path: PathBuf = proj_dirs.config_dir().join("config.json");
@@ -36,7 +30,7 @@ impl Config {
                         cfg.api_key = api_key;
                     },
                     Err(err) => {
-                        return Err(anyhow::anyhow!("Fehler beim Laden des API-Keys aus dem Keyring: {}", err));
+                        return Err(anyhow::anyhow!("Error loading api key from keyring: {}", err));
                     }
                 }
 
@@ -46,10 +40,7 @@ impl Config {
         Ok(None)
     }
 
-    /// Speichert die Config als pretty‐formatted JSON in "<config_dir>/config.json".
-    /// Der API-Key wird separat im Keyring gespeichert.
     pub fn save(&self) -> anyhow::Result<()> {
-        // Speichere den API-Key im Keyring
         Self::save_api_key_to_keyring(&self.api_key)?;
 
         if let Some(proj_dirs) = ProjectDirs::from("", "", "bytestashy") {
@@ -58,11 +49,9 @@ impl Config {
             let config_path = config_dir.join("config.json");
             let mut file = fs::File::create(&config_path)?;
 
-            // Der API-Key wird aufgrund des #[serde(skip)] nicht mit serialisiert
             let json = serde_json::to_string_pretty(self)?;
             file.write_all(json.as_bytes())?;
 
-            // Unter Unix könntest du hier noch chmod 600 setzen:
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -72,18 +61,16 @@ impl Config {
             }
             Ok(())
         } else {
-            anyhow::bail!("Konnte kein Konfigurationsverzeichnis ermitteln.");
+            anyhow::bail!("Could not save config file. Could not determine project directory.");
         }
     }
 
-    /// Speichert den API-Key im Keyring
     fn save_api_key_to_keyring(api_key: &str) -> anyhow::Result<()> {
         let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)?;
         entry.set_password(api_key)?;
         Ok(())
     }
 
-    /// Lädt den API-Key aus dem Keyring
     fn get_api_key_from_keyring() -> anyhow::Result<String> {
         let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)?;
         Ok(entry.get_password()?)

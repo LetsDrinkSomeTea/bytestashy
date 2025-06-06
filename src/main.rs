@@ -9,7 +9,7 @@ use api_client::APIClient;
 
 /// BitsCLI: Ein Tool, um Snippets per API hochzuladen.
 #[derive(Parser)]
-#[command(name = "bytestashy", version, about = "CLI für Snippet‐Uploads auf ByteStash")]
+#[command(name = "bytestashy", version, about = "CLI to push snippets to ByteStash")]
 struct Cli {
     files: Vec<String>,
 
@@ -19,9 +19,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Loggt ein, erzeugt einen API-Key und speichert diesen lokal.
     Login {
-        /// Basis-URL der API, z. B. https://meine.app.tld
         api_url: String,
     },
 }
@@ -31,63 +29,59 @@ fn main() {
 
     match &cli.command {
         Some(Commands::Login { api_url }) => {
-            // Verhalten wie bisher für "bits login <api_url>"
             if let Err(err) = APIClient::login_and_create_key(api_url) {
-                eprintln!("Fehler beim Login/API-Key-Erzeugung: {}", err);
+                eprintln!("Error while logging in: {}", err);
                 process::exit(1);
             }
         }
         None => {
-            // Falls kein Subcommand angegeben wurde, behandeln wir die übergebenen Dateien als Upload
             let files = &cli.files;
             if files.is_empty() {
-                eprintln!("Bitte mindestens eine Datei angeben.");
+                eprintln!("Provide at least one file to upload.");
                 process::exit(1);
             }
 
-            // 1. Versuchen, aus config.json api_url + api_key zu laden
             let client = match APIClient::new() {
                 Ok(c) => c,
                 Err(err) => {
                     eprintln!("{}", err);
-                    eprintln!("Führe zuerst `bits login <api-url>` aus, um den API-Key zu erzeugen.");
+                    eprintln!("Not logged in. Please run `bytestashy login <url>` first.");
                     process::exit(1);
                 }
             };
 
-            // 2. Interaktive Abfragen: title, description, is_public, categories, fragments
             let title: String = dialoguer::Input::new()
-                .with_prompt("Titel für das Snippet")
+                .with_prompt("Title:")
                 .interact_text()
                 .unwrap_or_else(|e| {
-                    eprintln!("Fehler beim Einlesen des Titels: {}", e);
+                    eprintln!("Error reading titels: {}", e);
                     process::exit(1);
                 });
 
             let description: String = dialoguer::Input::new()
-                .with_prompt("Beschreibung (optional)")
+                .with_prompt("Description (optional)")
                 .allow_empty(true)
                 .interact_text()
                 .unwrap_or_else(|e| {
-                    eprintln!("Fehler beim Einlesen der Beschreibung: {}", e);
+                    eprintln!("Error reading description: {}", e);
                     process::exit(1);
                 });
 
             let is_public: bool = dialoguer::Confirm::new()
-                .with_prompt("Soll das Snippet öffentlich sein?")
+                .with_prompt("Should the snippet be public?")
                 .default(false)
                 .interact()
                 .unwrap_or_else(|e| {
-                    eprintln!("Fehler beim Einlesen der Auswahl: {}", e);
+                    eprintln!("Error reading answer: {}", e);
                     process::exit(1);
                 });
 
             let categories: String = dialoguer::Input::new()
-                .with_prompt("Kategorien (Komma-separiert, z.B. \"rust,cli,security\")")
+                .with_prompt("Categories (Comma-separated, e.g. \"cli,homelab\")")
                 .allow_empty(true)
                 .interact_text()
                 .unwrap_or_else(|e| {
-                    eprintln!("Fehler beim Einlesen der Kategorien: {}", e);
+                    eprintln!("Error reading categories: {}", e);
                     process::exit(1);
                 });
 
@@ -100,11 +94,10 @@ fn main() {
                 &files,
             ) {
                 Ok(json) => {
-                    println!("Snippet erfolgreich erstellt.");
-                    println!("{}/snippets/{}", client.api_url, json.get("id").unwrap());
+                    println!("Snippet created at {}/snippets/{}", client.api_url, json.get("id").unwrap());
                 }
                 Err(err) => {
-                    eprintln!("Fehler beim Erstellen des Snippets: {}", err);
+                    eprintln!("Error creating snippet: {}", err);
                     process::exit(1);
                 }
             }
