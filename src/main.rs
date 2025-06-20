@@ -190,7 +190,7 @@ fn main() {
                 .with_prompt(format!("{}", "Title".bold()))
                 .interact_text()
                 .unwrap_or_else(|e| {
-                    eprintln!("Error reading titels: {}", e);
+                    eprintln!("Error reading title: {}", e);
                     process::exit(1);
                 });
 
