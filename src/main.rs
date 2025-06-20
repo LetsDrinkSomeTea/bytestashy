@@ -1,15 +1,23 @@
 // src/main.rs
 mod api_client;
 mod config;
+pub mod models;
 
-use clap::{Parser, Subcommand};
-use std::process;
-
+use std::path::Path;
 use api_client::APIClient;
+use clap::{Parser, Subcommand};
+use serde_json::Number;
+use std::{fs, process};
+use crate::models::Snippet;
+use colored::*;
 
 /// BitsCLI: Ein Tool, um Snippets per API hochzuladen.
 #[derive(Parser)]
-#[command(name = "bytestashy", version, about = "CLI to push snippets to ByteStash")]
+#[command(
+    name = "bytestashy",
+    version,
+    about = "CLI to push snippets to ByteStash"
+)]
 struct Cli {
     files: Vec<String>,
 
@@ -19,11 +27,39 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    #[command(about = "Authenticate with your ByteStash API",
+        long_about = "Fetches an API token and stores it in your config file.")]
     Login {
+        #[arg(help = "URL of your ByteStash server")]
         api_url: String,
+    },
+ #[command(about = "Show a paginated list of snippets")]
+    List {
+        #[arg(short, long, help = "Display every snippet, not just the first N")]
+        all: bool,
+        #[arg(short = 'n', long, help = "Page size N")]
+        number: Option<usize>,
+        #[arg(short = 'p', long, help = "Page number to display (starting at 1)")]
+        page: Option<usize>,
+    },
+    #[command(about = "Retrieve a snippet by ID and write its files")]
+    Get {
+        #[arg(help = "Numeric snippet identifier")]
+        id: Number,
     },
 }
 
+fn get_client() -> Result<APIClient, String> {
+    let client = match APIClient::new() {
+        Ok(c) => c,
+        Err(err) => {
+            eprintln!("{}", err);
+            eprintln!("Not logged in. Please run `bytestashy login <url>` first.");
+            process::exit(1);
+        }
+    };
+    Ok(client)
+}
 fn main() {
     let cli = Cli::parse();
 
@@ -34,6 +70,113 @@ fn main() {
                 process::exit(1);
             }
         }
+        Some(Commands::List { all, number, page }) => match get_client().unwrap().list() {
+            Ok(json_value) => {
+                let snippets: Vec<Snippet> = serde_json::from_value(json_value)
+                    .unwrap_or_else(|e| {
+                        eprintln!("Failed to parse snippets JSON: {}", e);
+                        process::exit(1);
+                    });
+
+                let total = snippets.len();
+                // Determine page size (limit per page)
+                let page_size = number.unwrap_or(10).min(total);
+                // Determine which offset
+                let page_index = page.unwrap_or(1).max(1);
+                let offset = if *all { 0 } else { (page_index - 1) * page_size };
+                let count = if *all { total } else { page_size };
+
+                println!("{}", "[ ID] TITLE (DESCRIPTION)".underline().bold());
+                snippets
+                    .into_iter()
+                    .skip(offset)
+                    .take(count)
+                    .for_each(|snip| {
+                        // Truncate description to 60 chars
+                        let desc = {
+                            let d = &snip.description;
+                            if d.chars().count() > 60 {
+                                d.chars().take(60).collect::<String>() + "…"
+                            } else {
+                                d.clone()
+                            }
+                        };
+                        let c_desc = if desc.is_empty() {
+                            String::new()
+                        } else {
+                            format!("({})", desc).white().to_string()
+                        };
+                        let c_title = snip.title.bold();
+                        let c_id = snip.id.to_string().bright_purple();
+                        println!("[{id:>3}] {title} {desc}", title=c_title, desc=c_desc, id=c_id);
+                    });
+
+                // Footer
+                if *all {
+                    println!("Total of {} snippets", total.to_string().bright_purple());
+                } else {
+                    println!("{}{}/{}{}{}",
+                        "page: ".white(),
+                        page_index.to_string().bright_yellow().bold(), 
+                        ((total / page_size) + 1).to_string().bright_yellow().bold(),
+                        " - total snippets: ".white(),
+                        total.to_string().bright_yellow().bold(),
+                    );
+                }
+            }
+            Err(err) => {
+                eprintln!("Error listing snippets: {}", err);
+                process::exit(1);
+            }
+        },
+
+        Some(Commands::Get { id }) => match get_client().unwrap().get_snippet(id) {
+            Ok(json_value) => {
+                let snippet: Snippet = match serde_json::from_value(json_value) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!("Failed to parse snippets JSON: {}", e);
+                        process::exit(1);
+                    }
+                };
+                
+                let want_continue: bool = dialoguer::Confirm::new()
+                    .with_prompt(format!("Should the snippet {} be loaded?", snippet.title.bright_purple().bold()))
+                    .default(true)
+                    .interact()
+                    .unwrap_or_else(|e| {
+                        eprintln!("Error reading answer: {}", e);
+                        process::exit(1);
+                    });
+                if !want_continue {
+                    process::exit(0);
+                }
+
+                for fragment in snippet.fragments {
+                    // Determine the path you want; here we just take the file_name as-is
+                    let path = Path::new(&fragment.file_name);
+
+                    if let Some(parent) = path.parent() {
+                        if let Err(e) = fs::create_dir_all(parent) {
+                            eprintln!("Failed to create directories for {:?}: {}", parent, e);
+                            process::exit(1);
+                        }
+                    }
+
+                    if let Err(e) = fs::write(&path, &fragment.code) {
+                        eprintln!("Failed to write {}: {}", fragment.file_name, e);
+                        process::exit(1);
+                    } else {
+                        let c_file_name = format!("{}", fragment.file_name.bright_purple());
+                        println!("Wrote {}", c_file_name);
+                    }
+                }
+            }
+            Err(err) => {
+                    eprintln!("Error getting snippets: {}", err);
+                    process::exit(1);
+            }
+        }
         None => {
             let files = &cli.files;
             if files.is_empty() {
@@ -41,17 +184,10 @@ fn main() {
                 process::exit(1);
             }
 
-            let client = match APIClient::new() {
-                Ok(c) => c,
-                Err(err) => {
-                    eprintln!("{}", err);
-                    eprintln!("Not logged in. Please run `bytestashy login <url>` first.");
-                    process::exit(1);
-                }
-            };
+            let client = get_client().unwrap();
 
             let title: String = dialoguer::Input::new()
-                .with_prompt("Title:")
+                .with_prompt(format!("{}", "Title".bold()))
                 .interact_text()
                 .unwrap_or_else(|e| {
                     eprintln!("Error reading titels: {}", e);
@@ -59,7 +195,7 @@ fn main() {
                 });
 
             let description: String = dialoguer::Input::new()
-                .with_prompt("Description (optional)")
+                .with_prompt(format!("{}", "Description (optional)".bold()))
                 .allow_empty(true)
                 .interact_text()
                 .unwrap_or_else(|e| {
@@ -68,7 +204,7 @@ fn main() {
                 });
 
             let is_public: bool = dialoguer::Confirm::new()
-                .with_prompt("Should the snippet be public?")
+                .with_prompt(format!("Should the snippet be {}?", "public".bold()))
                 .default(false)
                 .interact()
                 .unwrap_or_else(|e| {
@@ -77,7 +213,7 @@ fn main() {
                 });
 
             let categories: String = dialoguer::Input::new()
-                .with_prompt("Categories (Comma-separated, e.g. \"cli,homelab\")")
+                .with_prompt(format!("{} (Comma-separated, e.g. \"cli,homelab\")", "Categories".bold()))
                 .allow_empty(true)
                 .interact_text()
                 .unwrap_or_else(|e| {
@@ -86,15 +222,13 @@ fn main() {
                 });
 
             // 3. Snippet erstellen
-            match client.create_snippet(
-                &title,
-                &description,
-                is_public,
-                &categories,
-                &files,
-            ) {
+            match client.create_snippet(&title, &description, is_public, &categories, &files) {
                 Ok(json) => {
-                    println!("Snippet created at {}/snippets/{}", client.api_url, json.get("id").unwrap());
+                    let url = format!("{}/snippets/{}", client.api_url, json.get("id").unwrap());
+                    println!(
+                        "Snippet created at {}",
+                        url.bright_purple().underline()
+                    );
                 }
                 Err(err) => {
                     eprintln!("Error creating snippet: {}", err);

@@ -1,10 +1,10 @@
 // src/api_client.rs
 use anyhow::{Context, Result};
 use dialoguer::{Input, Password};
-use reqwest::blocking::{Client, multipart};
+use reqwest::blocking::{Client, multipart, Response};
 use reqwest::header;
 use serde::{Deserialize};
-use serde_json::json;
+use serde_json::{json, Number};
 use std::fs::File;
 use std::path::Path;
 
@@ -117,6 +117,42 @@ impl APIClient {
         );
         headers
     }
+    
+    pub fn list(&self) -> Result<serde_json::Value> {
+        let url = format!("{}/api/v1/snippets", self.api_url);
+        let resp = self
+            .client
+            .get(&url)
+            .headers(self.api_key_header())
+            .send()
+            .context("Error sending GET request to /api/v1/snippets")?;
+
+        match resp.status().as_u16() {
+            200 => {
+                let json: serde_json::Value =
+                    resp.json().context("Error parsing JSON response from /api/v1/snippets")?;
+                Ok(json)
+            }
+            401 => {
+                anyhow::bail!("Error 401: api key is invalid. Run 'bytestashy login <url>' to regenerate it.");
+            }
+            other => {
+                let text = resp.text().unwrap_or_default();
+                anyhow::bail!("Error {}: {}", other, text);
+            }
+        }
+    }
+    
+    pub fn get_snippet(&self, id: &Number) -> Result<serde_json::Value> {
+        let url = format!("{}/api/v1/snippets/{}", self.api_url, id);
+        let resp = self
+            .client
+            .get(&url)
+            .headers(self.api_key_header())
+            .send()
+            .context("Error sending GET request to /api/v1/snippets")?;
+        self.check_result(resp)
+    }
 
     pub fn create_snippet(
         &self,
@@ -157,7 +193,16 @@ impl APIClient {
             .send()
             .context("Error sending POST request to /api/v1/snippets/push")?;
 
+        self.check_result(resp)
+    }
+    
+    fn check_result(&self, resp: Response) -> Result<serde_json::value::Value> {
         match resp.status().as_u16() {
+            200 => {
+                let json: serde_json::Value =
+                    resp.json().context("Error parsing JSON response from /api/v1/snippets")?;
+                Ok(json)
+            }
             201 => {
                 let json: serde_json::Value =
                     resp.json().context("Error parsing JSON response from /api/v1/snippets/push")?;
