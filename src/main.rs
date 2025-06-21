@@ -3,13 +3,13 @@ mod api_client;
 mod config;
 pub mod models;
 
-use std::path::Path;
+use crate::models::Snippet;
 use api_client::APIClient;
 use clap::{Parser, Subcommand};
-use serde_json::Number;
-use std::{fs, process};
-use crate::models::Snippet;
 use colored::*;
+use serde_json::Number;
+use std::path::Path;
+use std::{fs, process};
 
 /// BitsCLI: Ein Tool, um Snippets per API hochzuladen.
 #[derive(Parser)]
@@ -27,13 +27,15 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    #[command(about = "Authenticate with your ByteStash API",
-        long_about = "Fetches an API token and stores it in your config file.")]
+    #[command(
+        about = "Authenticate with your ByteStash API",
+        long_about = "Fetches an API token and stores it in your config file."
+    )]
     Login {
         #[arg(help = "URL of your ByteStash server")]
         api_url: String,
     },
- #[command(about = "Show a paginated list of snippets")]
+    #[command(about = "Show a paginated list of snippets")]
     List {
         #[arg(short, long, help = "Display every snippet, not just the first N")]
         all: bool,
@@ -72,18 +74,20 @@ fn main() {
         }
         Some(Commands::List { all, number, page }) => match get_client().unwrap().list() {
             Ok(json_value) => {
-                let snippets: Vec<Snippet> = serde_json::from_value(json_value)
-                    .unwrap_or_else(|e| {
+                let snippets: Vec<Snippet> =
+                    serde_json::from_value(json_value).unwrap_or_else(|e| {
                         eprintln!("Failed to parse snippets JSON: {}", e);
                         process::exit(1);
                     });
 
                 let total = snippets.len();
-                // Determine page size (limit per page)
                 let page_size = number.unwrap_or(10).min(total);
-                // Determine which offset
                 let page_index = page.unwrap_or(1).max(1);
-                let offset = if *all { 0 } else { (page_index - 1) * page_size };
+                let offset = if *all {
+                    0
+                } else {
+                    (page_index - 1) * page_size
+                };
                 let count = if *all { total } else { page_size };
 
                 println!("{}", "[ ID] TITLE (DESCRIPTION)".underline().bold());
@@ -108,17 +112,27 @@ fn main() {
                         };
                         let c_title = snip.title.bold();
                         let c_id = snip.id.to_string().bright_purple();
-                        println!("[{id:>3}] {title} {desc}", title=c_title, desc=c_desc, id=c_id);
+                        println!(
+                            "[{id:>3}] {title} {desc}",
+                            title = c_title,
+                            desc = c_desc,
+                            id = c_id
+                        );
                     });
 
                 // Footer
                 if *all {
-                    println!("Total of {} snippets", total.to_string().bright_purple());
+                    println!(
+                        "Total of {} snippets",
+                        total.to_string().bright_yellow().bold()
+                    );
                 } else {
-                    println!("{}{}/{}{}{}",
+                    let num_pages = (total - 1) / page_size + 1;
+                    println!(
+                        "{}{}/{}{}{}",
                         "page: ".white(),
-                        page_index.to_string().bright_yellow().bold(), 
-                        ((total / page_size) + 1).to_string().bright_yellow().bold(),
+                        page_index.to_string().bright_yellow().bold(),
+                        num_pages.to_string().bright_yellow().bold(),
                         " - total snippets: ".white(),
                         total.to_string().bright_yellow().bold(),
                     );
@@ -139,9 +153,29 @@ fn main() {
                         process::exit(1);
                     }
                 };
-                
+                let c_desc = if snippet.description.is_empty() {
+                    String::new()
+                } else {
+                    format!("({})", snippet.description).white().to_string()
+                };
+                println!(
+                    "{} {}\n{}",
+                    snippet.title.bright_purple().bold(),
+                    c_desc,
+                    "Files:".white()
+                );
+                for fragment in &snippet.fragments {
+                    let c_file_name = format!("{}", fragment.file_name);
+                    println!("- {}", c_file_name);
+                }
+
                 let want_continue: bool = dialoguer::Confirm::new()
-                    .with_prompt(format!("Should the snippet {} be loaded?", snippet.title.bright_purple().bold()))
+                    .with_prompt(format!(
+                        "Should the file{} be downloaded?",
+                        (&snippet.fragments.len() > &1)
+                            .then(|| "s")
+                            .unwrap_or_else(|| "")
+                    ))
                     .default(true)
                     .interact()
                     .unwrap_or_else(|e| {
@@ -153,7 +187,6 @@ fn main() {
                 }
 
                 for fragment in snippet.fragments {
-                    // Determine the path you want; here we just take the file_name as-is
                     let path = Path::new(&fragment.file_name);
 
                     if let Some(parent) = path.parent() {
@@ -166,17 +199,19 @@ fn main() {
                     if let Err(e) = fs::write(&path, &fragment.code) {
                         eprintln!("Failed to write {}: {}", fragment.file_name, e);
                         process::exit(1);
-                    } else {
-                        let c_file_name = format!("{}", fragment.file_name.bright_purple());
-                        println!("Wrote {}", c_file_name);
                     }
                 }
+                println!("{}", "Successfully downloaded".bright_purple());
             }
             Err(err) => {
+                if err.to_string().contains("404") {
+                    eprintln!("{} not found", "Snippet".bright_purple().bold());
+                } else {
                     eprintln!("Error getting snippets: {}", err);
-                    process::exit(1);
+                }
+                process::exit(1);
             }
-        }
+        },
         None => {
             let files = &cli.files;
             if files.is_empty() {
@@ -213,7 +248,10 @@ fn main() {
                 });
 
             let categories: String = dialoguer::Input::new()
-                .with_prompt(format!("{} (Comma-separated, e.g. \"cli,homelab\")", "Categories".bold()))
+                .with_prompt(format!(
+                    "{} (Comma-separated, e.g. \"cli,homelab\")",
+                    "Categories".bold()
+                ))
                 .allow_empty(true)
                 .interact_text()
                 .unwrap_or_else(|e| {
@@ -225,10 +263,7 @@ fn main() {
             match client.create_snippet(&title, &description, is_public, &categories, &files) {
                 Ok(json) => {
                     let url = format!("{}/snippets/{}", client.api_url, json.get("id").unwrap());
-                    println!(
-                        "Snippet created at {}",
-                        url.bright_purple().underline()
-                    );
+                    println!("Snippet created at {}", url.bright_purple().underline());
                 }
                 Err(err) => {
                     eprintln!("Error creating snippet: {}", err);
