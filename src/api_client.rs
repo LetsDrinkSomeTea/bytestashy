@@ -1,10 +1,10 @@
 // src/api_client.rs
 use anyhow::{Context, Result};
 use dialoguer::{Input, Password};
-use reqwest::blocking::{Client, multipart, Response};
+use reqwest::blocking::{Client, Response, multipart};
 use reqwest::header;
-use serde::{Deserialize};
-use serde_json::{json, Number};
+use serde::Deserialize;
+use serde_json::{Number, json};
 use std::fs::File;
 use std::path::Path;
 
@@ -42,12 +42,8 @@ impl APIClient {
     }
 
     pub fn login_and_create_key(api_url: &str) -> Result<()> {
-        let username: String = Input::new()
-            .with_prompt("Username")
-            .interact_text()?;
-        let password: String = Password::new()
-            .with_prompt("Password")
-            .interact()?;
+        let username: String = Input::new().with_prompt("Username").interact_text()?;
+        let password: String = Password::new().with_prompt("Password").interact()?;
 
         let base = api_url.trim_end_matches('/');
         let login_endpoint = format!("{}/api/auth/login", base);
@@ -117,7 +113,7 @@ impl APIClient {
         );
         headers
     }
-    
+
     pub fn list(&self) -> Result<serde_json::Value> {
         let url = format!("{}/api/v1/snippets", self.api_url);
         let resp = self
@@ -129,12 +125,15 @@ impl APIClient {
 
         match resp.status().as_u16() {
             200 => {
-                let json: serde_json::Value =
-                    resp.json().context("Error parsing JSON response from /api/v1/snippets")?;
+                let json: serde_json::Value = resp
+                    .json()
+                    .context("Error parsing JSON response from /api/v1/snippets")?;
                 Ok(json)
             }
             401 => {
-                anyhow::bail!("Error 401: api key is invalid. Run 'bytestashy login <url>' to regenerate it.");
+                anyhow::bail!(
+                    "Error 401: api key is invalid. Run 'bytestashy login <url>' to regenerate it."
+                );
             }
             other => {
                 let text = resp.text().unwrap_or_default();
@@ -142,7 +141,7 @@ impl APIClient {
             }
         }
     }
-    
+
     pub fn get_snippet(&self, id: &Number) -> Result<serde_json::Value> {
         let url = format!("{}/api/v1/snippets/{}", self.api_url, id);
         let resp = self
@@ -176,8 +175,8 @@ impl APIClient {
                 .file_name()
                 .and_then(|osstr| osstr.to_str())
                 .unwrap_or("unknown");
-            let file = File::open(path)
-                .with_context(|| format!("Couldn't read file: {}", path_str))?;
+            let file =
+                File::open(path).with_context(|| format!("Couldn't read file: {}", path_str))?;
             form = form.part(
                 "files",
                 multipart::Part::reader(file).file_name(file_name.to_string()),
@@ -195,21 +194,25 @@ impl APIClient {
 
         self.check_result(resp)
     }
-    
+
     fn check_result(&self, resp: Response) -> Result<serde_json::value::Value> {
         match resp.status().as_u16() {
             200 => {
-                let json: serde_json::Value =
-                    resp.json().context("Error parsing JSON response from /api/v1/snippets")?;
+                let json: serde_json::Value = resp
+                    .json()
+                    .context("Error parsing JSON response from /api/v1/snippets")?;
                 Ok(json)
             }
             201 => {
-                let json: serde_json::Value =
-                    resp.json().context("Error parsing JSON response from /api/v1/snippets/push")?;
+                let json: serde_json::Value = resp
+                    .json()
+                    .context("Error parsing JSON response from /api/v1/snippets/push")?;
                 Ok(json)
             }
             401 => {
-                anyhow::bail!("Error 401: api key is invalid. Run 'bytestashy login <url>' to regenerate it.");
+                anyhow::bail!(
+                    "Error 401: api key is invalid. Run 'bytestashy login <url>' to regenerate it."
+                );
             }
             other => {
                 let text = resp.text().unwrap_or_default();

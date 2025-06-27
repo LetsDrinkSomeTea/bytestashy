@@ -28,9 +28,12 @@ impl Config {
                 match Self::get_api_key_from_keyring() {
                     Ok(api_key) => {
                         cfg.api_key = api_key;
-                    },
+                    }
                     Err(err) => {
-                        return Err(anyhow::anyhow!("Error loading api key from keyring: {}", err));
+                        return Err(anyhow::anyhow!(
+                            "Error loading api key from keyring: {}",
+                            err
+                        ));
                     }
                 }
 
@@ -74,5 +77,45 @@ impl Config {
     fn get_api_key_from_keyring() -> anyhow::Result<String> {
         let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)?;
         Ok(entry.get_password()?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_creation() {
+        let config = Config {
+            api_url: "https://example.com".to_string(),
+            api_key: "test-key".to_string(),
+        };
+
+        assert_eq!(config.api_url, "https://example.com");
+        assert_eq!(config.api_key, "test-key");
+    }
+
+    #[test]
+    fn test_config_serialization() {
+        let config = Config {
+            api_url: "https://example.com".to_string(),
+            api_key: "test-key".to_string(), // This should be skipped in serialization
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+
+        // api_key should be skipped due to #[serde(skip)]
+        assert!(json.contains("api_url"));
+        assert!(!json.contains("api_key"));
+        assert!(!json.contains("test-key"));
+    }
+
+    #[test]
+    fn test_config_deserialization() {
+        let json = r#"{"api_url":"https://example.com"}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+
+        assert_eq!(config.api_url, "https://example.com");
+        assert_eq!(config.api_key, ""); // Default empty string for skipped field
     }
 }
