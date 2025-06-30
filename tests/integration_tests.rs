@@ -55,15 +55,16 @@ fn test_login_help() {
 #[test]
 fn test_no_files_provided() {
     let mut cmd = Command::cargo_bin("bytestashy").unwrap();
-    cmd.assert().failure().stderr(predicate::str::contains(
-        "Provide at least one file to upload",
-    ));
+    cmd.args(&["create"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Provide at least one file"));
 }
 
 #[test]
 fn test_nonexistent_file() {
     let mut cmd = Command::cargo_bin("bytestashy").unwrap();
-    cmd.arg("/nonexistent/file.txt")
+    cmd.args(&["create", "/nonexistent/file.txt"])
         .assert()
         .failure()
         .stderr(predicate::str::contains("File does not exist"));
@@ -72,7 +73,7 @@ fn test_nonexistent_file() {
 #[test]
 fn test_path_traversal_protection() {
     let mut cmd = Command::cargo_bin("bytestashy").unwrap();
-    cmd.arg("../../../etc/passwd")
+    cmd.args(&["create", "../../../etc/passwd"])
         .assert()
         .failure()
         .stderr(predicate::str::contains(".."));
@@ -97,7 +98,7 @@ fn test_file_upload_validation() {
 
     // This will fail because it tries to prompt user, but it should validate the file first
     let mut cmd = Command::cargo_bin("bytestashy").unwrap();
-    cmd.arg(file_path.to_str().unwrap())
+    cmd.args(&["create", file_path.to_str().unwrap()])
         .assert()
         .failure()
         .stderr(

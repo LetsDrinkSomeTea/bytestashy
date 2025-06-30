@@ -4,7 +4,7 @@ use dialoguer::{Input, Password};
 use reqwest::blocking::{Client, Response, multipart};
 use reqwest::header;
 use serde::Deserialize;
-use serde_json::{Number, json};
+use serde_json::json;
 use std::fs::File;
 use std::path::Path;
 
@@ -46,7 +46,7 @@ impl APIClient {
         let password: String = Password::new().with_prompt("Password").interact()?;
 
         let base = api_url.trim_end_matches('/');
-        let login_endpoint = format!("{}/api/auth/login", base);
+        let login_endpoint = format!("{base}/api/auth/login");
         let http_client = Client::new();
 
         let resp = http_client
@@ -75,8 +75,8 @@ impl APIClient {
             .default("bytestashy".into())
             .interact_text()?;
 
-        let create_key_endpoint = format!("{}/api/keys", base);
-        let bearer_header_value = format!("bearer {}", jwt_token);
+        let create_key_endpoint = format!("{base}/api/keys");
+        let bearer_header_value = format!("bearer {jwt_token}");
         let resp_key = http_client
             .post(&create_key_endpoint)
             .header("bytestashauth", bearer_header_value)
@@ -142,7 +142,7 @@ impl APIClient {
         }
     }
 
-    pub fn get_snippet(&self, id: &Number) -> Result<serde_json::Value> {
+    pub fn get_snippet(&self, id: &usize) -> Result<serde_json::Value> {
         let url = format!("{}/api/v1/snippets/{}", self.api_url, id);
         let resp = self
             .client
@@ -168,7 +168,6 @@ impl APIClient {
             .text("is_public", is_public.to_string())
             .text("categories", categories.to_string());
 
-        // Dateien anhängen
         for path_str in file_paths {
             let path = Path::new(path_str);
             let file_name = path
@@ -176,7 +175,7 @@ impl APIClient {
                 .and_then(|osstr| osstr.to_str())
                 .unwrap_or("unknown");
             let file =
-                File::open(path).with_context(|| format!("Couldn't read file: {}", path_str))?;
+                File::open(path).with_context(|| format!("Couldn't read file: {path_str}"))?;
             form = form.part(
                 "files",
                 multipart::Part::reader(file).file_name(file_name.to_string()),
@@ -192,6 +191,92 @@ impl APIClient {
             .send()
             .context("Error sending POST request to /api/v1/snippets/push")?;
 
+        self.check_result(resp)
+    }
+
+    pub fn delete_snippet(&self, id: &usize) -> Result<serde_json::Value> {
+        let url = format!("{}/api/v1/snippets/{}", self.api_url, id);
+        let resp = self
+            .client
+            .delete(&url)
+            .headers(self.api_key_header())
+            .send()
+            .context("Error sending DELETE request to /api/v1/snippets")?;
+        self.check_result(resp)
+    }
+
+    pub fn update_snippet(
+        &self,
+        id: &usize,
+        title: &str,
+        description: &str,
+        is_public: bool,
+        categories: &str,
+        file_paths: &[String],
+    ) -> Result<serde_json::Value> {
+        let url = format!("{}/api/v1/snippets/{}", self.api_url, id);
+        let mut form = multipart::Form::new()
+            .text("title", title.to_string())
+            .text("description", description.to_string())
+            .text("is_public", is_public.to_string())
+            .text("categories", categories.to_string());
+
+        // Dateien anhängen
+        for path_str in file_paths {
+            let path = Path::new(path_str);
+            let file_name = path
+                .file_name()
+                .and_then(|osstr| osstr.to_str())
+                .unwrap_or("unknown");
+            let file =
+                File::open(path).with_context(|| format!("Couldn't read file: {path_str}"))?;
+            form = form.part(
+                "files",
+                multipart::Part::reader(file).file_name(file_name.to_string()),
+            );
+        }
+
+        // Request absenden
+        let resp = self
+            .client
+            .put(&url)
+            .headers(self.api_key_header())
+            .multipart(form)
+            .send()
+            .context("Error sending PUT request to /api/v1/snippets")?;
+
+        self.check_result(resp)
+    }
+
+    pub fn search_snippets(
+        &self,
+        query: &str,
+        sort: Option<&str>,
+        search_code: Option<bool>,
+    ) -> Result<serde_json::Value> {
+        let mut url = format!("{}/api/v1/snippets/search", self.api_url);
+        let mut params = Vec::new();
+
+        params.push(format!("q={}", urlencoding::encode(query)));
+
+        if let Some(s) = sort {
+            params.push(format!("sort={s}"));
+        }
+        if let Some(sc) = search_code {
+            params.push(format!("searchCode={sc}"));
+        }
+
+        if !params.is_empty() {
+            url.push('?');
+            url.push_str(&params.join("&"));
+        }
+
+        let resp = self
+            .client
+            .get(&url)
+            .headers(self.api_key_header())
+            .send()
+            .context("Error sending GET request to /api/v1/snippets/search")?;
         self.check_result(resp)
     }
 
@@ -213,6 +298,9 @@ impl APIClient {
                 anyhow::bail!(
                     "Error 401: api key is invalid. Run 'bytestashy login <url>' to regenerate it."
                 );
+            }
+            404 => {
+                anyhow::bail!("Error 404: Snippet not found");
             }
             other => {
                 let text = resp.text().unwrap_or_default();
