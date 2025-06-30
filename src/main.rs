@@ -1,4 +1,3 @@
-// src/main.rs
 mod api_client;
 mod cli;
 mod config;
@@ -16,6 +15,7 @@ use std::path::Path;
 use std::{fs, process};
 use tracing::{error, info, warn};
 
+/// Initialize API client with saved configuration
 fn get_client() -> Result<APIClient> {
     APIClient::new().map_err(|e| {
         error!("Failed to initialize API client: {}", e);
@@ -23,6 +23,7 @@ fn get_client() -> Result<APIClient> {
     })
 }
 
+/// Validate and parse API URL, warn for local networks
 fn validate_api_url(url: &str) -> Result<url::Url> {
     let parsed_url = url::Url::parse(url)?;
 
@@ -37,6 +38,7 @@ fn validate_api_url(url: &str) -> Result<url::Url> {
     }
 
     if let Some(host) = parsed_url.host_str() {
+        // Check for common local/private network addresses
         if host == "localhost"
             || host == "127.0.0.1"
             || host.starts_with("192.168.")
@@ -49,6 +51,7 @@ fn validate_api_url(url: &str) -> Result<url::Url> {
     Ok(parsed_url)
 }
 
+/// Check if file exists and is readable
 fn validate_file_path(path: &str) -> Result<()> {
     let path_obj = Path::new(path);
 
@@ -67,6 +70,7 @@ fn validate_file_path(path: &str) -> Result<()> {
     Ok(())
 }
 
+/// Validate all provided file paths
 fn validate_files(files: &[String]) -> Result<()> {
     if files.is_empty() {
         return Err(ByteStashyError::invalid_input("Provide at least one file"));
@@ -79,10 +83,11 @@ fn validate_files(files: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// Display formatted list of snippets with truncated descriptions
 fn print_snippets_list(snippets: &[Snippet]) {
     println!("{}", "[ ID] TITLE (DESCRIPTION)".underline().bold());
     for snip in snippets {
-        // Truncate description to 60 chars
+        // Limit description to 60 chars for display
         let desc = {
             let d = &snip.description;
             if d.chars().count() > 60 {
@@ -102,6 +107,7 @@ fn print_snippets_list(snippets: &[Snippet]) {
     }
 }
 
+/// Form data collected from user input
 struct SnippetForm {
     title: String,
     description: String,
@@ -109,6 +115,7 @@ struct SnippetForm {
     categories: String,
 }
 
+/// Collect snippet metadata from user via interactive prompts
 fn collect_snippet_form_data(defaults: Option<&Snippet>) -> Result<SnippetForm> {
     let title = if let Some(snippet) = defaults {
         dialoguer::Input::new()
@@ -173,7 +180,7 @@ fn main() {
     if let Err(e) = run_app(cli) {
         error!("Application error: {}", e);
 
-        // Print user-friendly error message
+        // Show user-friendly error messages
         match e {
             ByteStashyError::Auth { message } => {
                 eprintln!("Authentication failed: {message}");
@@ -197,7 +204,7 @@ fn main() {
 }
 
 fn run_app(cli: Cli) -> Result<()> {
-    // Handle completions flag first
+    // Generate shell completions if requested
     if let Some(shell) = cli.shell {
         let mut cmd = Cli::command();
         match shell {
@@ -214,7 +221,7 @@ fn run_app(cli: Cli) -> Result<()> {
         return Ok(());
     }
 
-    // Handle regular commands
+    // Process CLI commands
     match cli.command {
         None => {
             let mut cmd = Cli::command();
@@ -289,6 +296,7 @@ fn run_app(cli: Cli) -> Result<()> {
                             println!("- {c_file_name}");
                         }
 
+                        // Ask user if they want to preview code
                         let want_show_code: bool = dialoguer::Confirm::new()
                             .with_prompt(format!("{}", "Show code?".bold()))
                             .default(false)
@@ -306,6 +314,7 @@ fn run_app(cli: Cli) -> Result<()> {
                             }
                         }
                         
+                        // Confirm before downloading files
                         let want_continue: bool = dialoguer::Confirm::new()
                             .with_prompt(format!(
                                 "{}",
@@ -322,6 +331,7 @@ fn run_app(cli: Cli) -> Result<()> {
                         for fragment in snippet.fragments {
                             let path = Path::new(&fragment.file_name);
 
+                            // Create parent directories if needed
                             if let Some(parent) = path.parent() {
                                 fs::create_dir_all(parent).map_err(|e| {
                                     ByteStashyError::file_operation(parent.display().to_string(), e)
@@ -450,7 +460,7 @@ fn run_app(cli: Cli) -> Result<()> {
 
                 print_snippets_list(&display_snippets);
 
-                // Footer
+                // Show pagination info
                 if *all {
                     println!(
                         "Total of {} snippets",
@@ -475,7 +485,7 @@ fn run_app(cli: Cli) -> Result<()> {
             } => {
                 let client = get_client()?;
 
-                // Validate sort parameter
+                // Check sort parameter is valid
                 if let Some(sort_value) = sort {
                     match sort_value.as_str() {
                         "newest" | "oldest" | "alpha-asc" | "alpha-desc" => {}

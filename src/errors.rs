@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+/// Application-specific error types
 #[derive(Error, Debug)]
 #[allow(dead_code)]
 pub enum ByteStashyError {
@@ -41,10 +42,13 @@ pub enum ByteStashyError {
     ProgressTemplate(#[from] indicatif::style::TemplateError),
 }
 
+/// Convenience type alias for Results with ByteStashyError
 pub type Result<T> = std::result::Result<T, ByteStashyError>;
 
+/// Constructors for common error scenarios
 impl ByteStashyError {
     #[allow(dead_code)]
+    /// Create authentication error
     pub fn auth(message: impl Into<String>) -> Self {
         Self::Auth {
             message: message.into(),
@@ -52,6 +56,7 @@ impl ByteStashyError {
     }
 
     #[allow(dead_code)]
+    /// Create API error with HTTP status
     pub fn api(status: u16, message: impl Into<String>) -> Self {
         Self::Api {
             status,
@@ -59,6 +64,7 @@ impl ByteStashyError {
         }
     }
 
+    /// Create file operation error
     pub fn file_operation(path: impl Into<String>, source: std::io::Error) -> Self {
         Self::FileOperation {
             path: path.into(),
@@ -66,6 +72,7 @@ impl ByteStashyError {
         }
     }
 
+    /// Create input validation error
     pub fn invalid_input(message: impl Into<String>) -> Self {
         Self::InvalidInput(message.into())
     }

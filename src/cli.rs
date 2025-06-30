@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
-/// BitsCLI: Ein Tool, um Snippets per API hochzuladen.
+/// CLI tool for managing code snippets via ByteStash API
 #[derive(Parser)]
 #[command(
     name = "bytestashy",
@@ -8,6 +8,7 @@ use clap::{Parser, Subcommand, ValueEnum};
     about = "CLI to push snippets to ByteStash"
 )]
 pub struct Cli {
+    /// Generate shell completions instead of running commands
     #[arg(long, help = "Generate shell completions for the specified shell")]
     pub shell: Option<Shell>,
 
@@ -15,6 +16,7 @@ pub struct Cli {
     pub command: Option<Commands>,
 }
 
+/// Available CLI commands
 #[derive(Subcommand)]
 pub enum Commands {
     #[command(
@@ -73,11 +75,11 @@ pub enum Commands {
     },
 }
 
+/// Supported shell types for completion generation
 #[derive(ValueEnum, Clone)]
 pub enum Shell {
     Bash,
     Zsh,
     Fish,
-    #[allow(clippy::enum_variant_names)] // PowerShell has to end with "Shell"
     Powershell,
 }

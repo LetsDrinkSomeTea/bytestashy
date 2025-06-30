@@ -1,5 +1,6 @@
 use serde::Deserialize;
 
+/// A code fragment within a snippet
 #[derive(Deserialize, Debug, PartialEq)]
 pub struct Fragment {
     pub id: u64,
@@ -9,6 +10,7 @@ pub struct Fragment {
     pub position: u64,
 }
 
+/// A complete code snippet with metadata and fragments
 #[derive(Deserialize, Debug, PartialEq)]
 pub struct Snippet {
     pub id: u64,

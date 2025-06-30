@@ -5,18 +5,22 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
-// Constants for keyring
+/// Keyring service identifier
 const KEYRING_SERVICE: &str = "bytestashy";
+/// Keyring username for API key storage
 const KEYRING_USERNAME: &str = "api_key";
 
+/// Application configuration with API credentials
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub api_url: String,
+    /// API key stored in system keyring (not serialized)
     #[serde(skip)]
     pub api_key: String,
 }
 
 impl Config {
+    /// Load configuration from file and keyring
     pub fn load() -> anyhow::Result<Option<Config>> {
         if let Some(proj_dirs) = ProjectDirs::from("", "", "bytestashy") {
             let config_path: PathBuf = proj_dirs.config_dir().join("config.json");
@@ -24,7 +28,7 @@ impl Config {
                 let content = fs::read_to_string(&config_path)?;
                 let mut cfg: Config = serde_json::from_str(&content)?;
 
-                // Versuche, den API-Key aus dem Keyring zu laden
+                // Load API key from keyring
                 match Self::get_api_key_from_keyring() {
                     Ok(api_key) => {
                         cfg.api_key = api_key;
@@ -43,6 +47,7 @@ impl Config {
         Ok(None)
     }
 
+    /// Save configuration to file and keyring
     pub fn save(&self) -> anyhow::Result<()> {
         Self::save_api_key_to_keyring(&self.api_key)?;
 
@@ -55,6 +60,7 @@ impl Config {
             let json = serde_json::to_string_pretty(self)?;
             file.write_all(json.as_bytes())?;
 
+            // Set restrictive permissions on Unix systems
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -68,12 +74,14 @@ impl Config {
         }
     }
 
+    /// Store API key securely in system keyring
     fn save_api_key_to_keyring(api_key: &str) -> anyhow::Result<()> {
         let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)?;
         entry.set_password(api_key)?;
         Ok(())
     }
 
+    /// Retrieve API key from system keyring
     fn get_api_key_from_keyring() -> anyhow::Result<String> {
         let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)?;
         Ok(entry.get_password()?)

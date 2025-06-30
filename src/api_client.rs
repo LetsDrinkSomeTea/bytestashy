@@ -1,4 +1,3 @@
-// src/api_client.rs
 use anyhow::{Context, Result};
 use dialoguer::{Input, Password};
 use reqwest::blocking::{Client, Response, multipart};
@@ -10,17 +9,20 @@ use std::path::Path;
 
 use crate::config::Config;
 
+/// Response from login endpoint
 #[derive(Deserialize)]
 struct LoginResponse {
     token: String,
-    // user‐Feld ignorieren wir, wir brauchen nur das JWT‐Token
+    // Only need the JWT token
 }
 
+/// Response from API key creation endpoint
 #[derive(Deserialize)]
 struct ApiKeyResponse {
     key: String,
 }
 
+/// HTTP client for ByteStash API operations
 pub struct APIClient {
     client: Client,
     pub(crate) api_url: String,
@@ -28,6 +30,7 @@ pub struct APIClient {
 }
 
 impl APIClient {
+    /// Create new API client from saved config
     pub fn new() -> Result<APIClient> {
         if let Some(cfg) = Config::load()? {
             let client = Client::builder().build()?;
@@ -41,6 +44,7 @@ impl APIClient {
         }
     }
 
+    /// Interactive login flow - authenticate and create API key
     pub fn login_and_create_key(api_url: &str) -> Result<()> {
         let username: String = Input::new().with_prompt("Username").interact_text()?;
         let password: String = Password::new().with_prompt("Password").interact()?;
@@ -55,6 +59,7 @@ impl APIClient {
             .send()
             .context("Error login in (POST /api/auth/login)")?;
 
+        // Handle authentication errors
         if resp.status().as_u16() != 200 {
             if resp.status().as_u16() == 401 {
                 anyhow::bail!("Invalid credentials (401 Unauthorized).");
@@ -84,6 +89,7 @@ impl APIClient {
             .send()
             .context("Error creating key (POST /api/keys)")?;
 
+        // Check API key creation was successful
         if resp_key.status().as_u16() != 201 {
             let status = resp_key.status();
             let text = resp_key.text().unwrap_or_default();
@@ -105,6 +111,7 @@ impl APIClient {
         Ok(())
     }
 
+    /// Build HTTP headers with API key authentication
     fn api_key_header(&self) -> header::HeaderMap {
         let mut headers = header::HeaderMap::new();
         headers.insert(
@@ -114,6 +121,7 @@ impl APIClient {
         headers
     }
 
+    /// Fetch all user snippets
     pub fn list(&self) -> Result<serde_json::Value> {
         let url = format!("{}/api/v1/snippets", self.api_url);
         let resp = self
@@ -142,6 +150,7 @@ impl APIClient {
         }
     }
 
+    /// Fetch single snippet by ID
     pub fn get_snippet(&self, id: &usize) -> Result<serde_json::Value> {
         let url = format!("{}/api/v1/snippets/{}", self.api_url, id);
         let resp = self
@@ -153,6 +162,7 @@ impl APIClient {
         self.check_result(resp)
     }
 
+    /// Upload files and create new snippet
     pub fn create_snippet(
         &self,
         title: &str,
@@ -168,6 +178,7 @@ impl APIClient {
             .text("is_public", is_public.to_string())
             .text("categories", categories.to_string());
 
+        // Add each file to multipart form
         for path_str in file_paths {
             let path = Path::new(path_str);
             let file_name = path
@@ -182,7 +193,7 @@ impl APIClient {
             );
         }
 
-        // Request absenden
+        // Send request
         let resp = self
             .client
             .post(&url)
@@ -194,6 +205,7 @@ impl APIClient {
         self.check_result(resp)
     }
 
+    /// Delete snippet by ID
     pub fn delete_snippet(&self, id: &usize) -> Result<serde_json::Value> {
         let url = format!("{}/api/v1/snippets/{}", self.api_url, id);
         let resp = self
@@ -205,6 +217,7 @@ impl APIClient {
         self.check_result(resp)
     }
 
+    /// Update existing snippet with new files and metadata
     pub fn update_snippet(
         &self,
         id: &usize,
@@ -221,7 +234,8 @@ impl APIClient {
             .text("is_public", is_public.to_string())
             .text("categories", categories.to_string());
 
-        // Dateien anhängen
+        // Attach files
+        // Add each file to multipart form
         for path_str in file_paths {
             let path = Path::new(path_str);
             let file_name = path
@@ -236,7 +250,7 @@ impl APIClient {
             );
         }
 
-        // Request absenden
+        // Send request
         let resp = self
             .client
             .put(&url)
@@ -248,6 +262,7 @@ impl APIClient {
         self.check_result(resp)
     }
 
+    /// Search snippets with query parameters
     pub fn search_snippets(
         &self,
         query: &str,
@@ -255,6 +270,7 @@ impl APIClient {
         search_code: Option<bool>,
     ) -> Result<serde_json::Value> {
         let mut url = format!("{}/api/v1/snippets/search", self.api_url);
+        // Build query parameters
         let mut params = Vec::new();
 
         params.push(format!("q={}", urlencoding::encode(query)));
@@ -280,6 +296,7 @@ impl APIClient {
         self.check_result(resp)
     }
 
+    /// Parse HTTP response and handle common error codes
     fn check_result(&self, resp: Response) -> Result<serde_json::value::Value> {
         match resp.status().as_u16() {
             200 => {
