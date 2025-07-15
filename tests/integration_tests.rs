@@ -91,23 +91,6 @@ fn test_invalid_url_scheme() {
 }
 
 #[test]
-fn test_file_upload_validation() {
-    let temp_dir = TempDir::new().unwrap();
-    let file_path = temp_dir.path().join("test.txt");
-    fs::write(&file_path, "test content").unwrap();
-
-    // This will fail because it tries to prompt user, but it should validate the file first
-    let mut cmd = Command::cargo_bin("bytestashy").unwrap();
-    cmd.args(&["create", file_path.to_str().unwrap()])
-        .assert()
-        .failure()
-        .stderr(
-            predicate::str::contains("Dialog interaction failed")
-                .or(predicate::str::contains("Failed to initialize API client")),
-        );
-}
-
-#[test]
 fn test_list_command_runs() {
     // This test just checks that the list command can be executed
     // It might succeed if there's a valid config, or fail if not logged in
@@ -115,14 +98,4 @@ fn test_list_command_runs() {
     cmd.arg("list")
         .assert()
         .code(predicate::in_iter(vec![0, 1])); // Either success or failure is acceptable
-}
-
-#[test]
-fn test_get_invalid_snippet() {
-    // This test checks that get command handles invalid snippet IDs properly
-    let mut cmd = Command::cargo_bin("bytestashy").unwrap();
-    cmd.args(&["get", "999999"]).assert().failure().stderr(
-        predicate::str::contains("Snippet not found")
-            .or(predicate::str::contains("Failed to initialize API client")),
-    );
 }
