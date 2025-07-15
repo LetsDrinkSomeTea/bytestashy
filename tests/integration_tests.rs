@@ -1,7 +1,5 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
-use std::fs;
-use tempfile::TempDir;
 
 #[test]
 fn test_help_command() {
