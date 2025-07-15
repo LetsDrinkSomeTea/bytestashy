@@ -45,6 +45,7 @@ bytestashy list [OPTIONS]
 ```
 
 **Options:**
+
 - `--all, -a`: Display all snippets (no pagination)
 - `--number, -n <N>`: Page size (default: 10)
 - `--page, -p <N>`: Page number to display (starting at 1)
@@ -78,6 +79,7 @@ bytestashy delete <ID> [OPTIONS]
 ```
 
 **Options:**
+
 - `--force, -f`: Skip confirmation dialog
 
 ### Search Snippets
@@ -89,12 +91,14 @@ bytestashy search <QUERY> [OPTIONS]
 ```
 
 **Options:**
+
 - `--sort, -s <ORDER>`: Sort order (newest, oldest, alpha-asc, alpha-desc)
 - `--search-code`: Search within code content (not just titles/descriptions)
 
 **Available sort options:**
+
 - `newest` - Most recently updated first
-- `oldest` - Oldest first  
+- `oldest` - Oldest first
 - `alpha-asc` - Alphabetical by title (A-Z)
 - `alpha-desc` - Alphabetical by title (Z-A)
 
@@ -111,6 +115,7 @@ bytestashy --shell <SHELL>
 **Installation examples:**
 
 **Bash:**
+
 ```bash
 bytestashy --shell bash > /etc/bash_completion.d/bytestashy
 # or for user-only installation:
@@ -118,12 +123,14 @@ bytestashy --shell bash > ~/.local/share/bash-completion/completions/bytestashy
 ```
 
 **Zsh:**
+
 ```bash
 bytestashy --shell zsh > ~/.zsh/completions/_bytestashy
 # Make sure ~/.zsh/completions is in your $fpath
 ```
 
 **Fish:**
+
 ```bash
 bytestashy --shell fish > ~/.config/fish/completions/bytestashy.fish
 ```
@@ -133,3 +140,7 @@ After installation, restart your shell or source the completion file to enable t
 ## License
 
 This project is licensed under the GPLv3. See [LICENSE](LICENSE).
+
+## References
+
+- [ByteStash](https://github.com/jordan-dalby/ByteStash)
