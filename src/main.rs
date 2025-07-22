@@ -303,13 +303,19 @@ fn run_app(cli: Cli) -> Result<()> {
                             .interact()?;
 
                         if want_show_code {
-                            for fragment in &snippet.fragments {
-                                let want_show_fragment: bool = dialoguer::Confirm::new()
-                                    .with_prompt(format!("Show {}", fragment.file_name.bright_purple().bold()))
-                                    .default(true)
-                                    .interact()?;
-                                if want_show_fragment {
-                                    println!("{}\n", fragment.code);
+                            if snippet.fragments.len() == 1 {
+                                // For single-file snippets, show directly without asking again
+                                println!("{}\n", snippet.fragments[0].code);
+                            } else {
+                                // For multi-file snippets, ask for each file
+                                for fragment in &snippet.fragments {
+                                    let want_show_fragment: bool = dialoguer::Confirm::new()
+                                        .with_prompt(format!("Show {}", fragment.file_name.bright_purple().bold()))
+                                        .default(true)
+                                        .interact()?;
+                                    if want_show_fragment {
+                                        println!("{}\n", fragment.code);
+                                    }
                                 }
                             }
                         }
