@@ -26,6 +26,8 @@ pub enum Commands {
     Login {
         #[arg(help = "URL of your ByteStash server")]
         api_url: String,
+        #[arg(help = "API key to use for authentication (optional)")]
+        api_key: Option<String>,
     },
     #[command(about = "Create a new snippet")]
     Create {

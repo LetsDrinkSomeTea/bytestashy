@@ -230,19 +230,30 @@ fn run_app(cli: Cli) -> Result<()> {
             return Ok(());
         }
         Some(command) => match &command {
-            Commands::Login { api_url } => {
+            Commands::Login { api_url, api_key } => {
                 validate_api_url(api_url)?;
 
-                let result = APIClient::login_and_create_key(api_url);
-
-                match result {
-                    Ok(_) => {
-                        println!("{}", "Login successful!".green().bold());
+                if let Some(key) = api_key {
+                    let cfg = config::Config {
+                        api_url: api_url.to_string(),
+                        api_key: key.to_string(),
+                    };
+                    if let Err(e) = cfg.save() {
+                        return Err(ByteStashyError::Config(e));
                     }
-                    Err(e) => {
-                        return Err(ByteStashyError::Auth {
-                            message: e.to_string(),
-                        });
+                    println!("{}", "API key saved successfully!".green().bold());
+                } else {
+                    let result = APIClient::login_and_create_key(api_url);
+
+                    match result {
+                        Ok(_) => {
+                            println!("{}", "Login successful!".green().bold());
+                        }
+                        Err(e) => {
+                            return Err(ByteStashyError::Auth {
+                                message: e.to_string(),
+                            });
+                        }
                     }
                 }
             }
